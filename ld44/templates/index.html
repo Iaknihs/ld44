@@ -1,9 +1,162 @@
-<!-- templates/index.html -->
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>My Gosh Darn Fancy Website</title>
-  </head>
-  <body>
-    <h1>{{message}}</h1>
-  </body>
+<head>
+<title>LD44 - Life is short</title>
+<style>
+center {
+  width: 50%;
+  height: 50%;
+  padding: 0;
+  margin: auto;
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+</style>
+<script src="https://code.jquery.com/jquery-3.4.0.min.js"
+	  integrity="sha256-BJeo0qm959uMBGb65z40ejJYGSgR7REI4+CW1fNKwOg="
+	  crossorigin="anonymous"></script>
+<script type="text/javascript">
+	$ROOT = "http://danielschruff.com/gamejams/ld44"
+</script>
+<script type="text/javascript">
+	window.onload = function() {
+		var canvas = document.getElementById("canvas");
+		var context = canvas.getContext("2d");
+		
+		var width = canvas.width;
+		var height = canvas.height;
+	
+		var imagedata = context.createImageData(width,height);
+		
+		var field = "UNINITED";
+		var life = 0;
+		var score = 0;
+		
+		var sid = "";
+		
+		var up_to_date = true;
+		var paused = true;
+		
+		
+		function toggleFreeze() {
+			paused = !paused
+			if paused{
+				document.getElementById("frozen").innerHTML = "Unfreeze";
+			} else {
+				document.getElementById("frozen").innerHTML = "Freeze";
+			}
+		}
+		
+		
+		function get_sid() {
+			$.ajax({
+				url: '/sid',
+				type: 'get',
+				success: function (data) {
+					temp = JSON.parse(data);
+					sid = temp['sid'];
+					up_to_date = false;
+				}
+			});
+		}
+		
+		function update_gamestate() {
+			up_to_date = true;
+			$.ajax({
+				url: '/update',
+				type: 'post',
+				dataType: 'json',
+				contentType: 'application/json',
+				success: function (data) {
+					temp = JSON.parse(data);
+					field = temp['field'];
+					life = temp['life'];
+					score = temp['score'];
+					if (sid != temp['sid']){
+						console.log(sid + "   " + temp['sid']);
+					}
+					up_to_date = false;
+				},
+				data: JSON.stringify({
+					'sid': sid,
+					'life': life,
+					'field': field,
+					'score': score,
+					'paused': paused
+				})
+			});
+		}
+		
+		canvas.addEventListener('click', (e) => {
+			var rect = canvas.getBoundingClientRect();
+			const pos = {
+				x: (e.clientX - rect.left) * (canvas.width / rect.width),
+				y: (e.clientY - rect.top) * (canvas.height / rect.height)
+			}
+			console.log(pos.x + "   " + pos.y)
+			field[Math.floor(pos.x/10)][Math.floor(pos.y/10)] = 1 - field[Math.floor(pos.x/10)][Math.floor(pos.y/10)];
+			life -= 2;
+		})
+		
+		function createImage() {
+				
+			var count = 0;
+			for (var x=0; x<width; x++) {
+				for (var y=0; y<height; y++) {
+					count += 1;
+					var idx = (y * width + x) * 4;
+					
+					var temp = 0
+					if (x % 10 == 9) {
+						temp = 1
+					}
+					if (y % 10 == 9) {
+						temp = 1
+					}
+					
+					var red = 255 * (field[Math.floor(x/10)][Math.floor(y/10)] ^ temp);
+					var green = 255 * (field[Math.floor(x/10)][Math.floor(y/10)] ^ temp);
+					var blue = 255 * (field[Math.floor(x/10)][Math.floor(y/10)] ^ temp);
+					var alpha = 255;
+					
+					imagedata.data[idx] = red;
+					imagedata.data[idx+1] = green;
+					imagedata.data[idx+2] = blue;
+					imagedata.data[idx+3] = alpha;
+				}
+			}
+		}
+		
+		function main(tframe) {
+			if (!up_to_date){
+				update_gamestate();
+			}
+			window.requestAnimationFrame(main);
+			
+			createImage();
+			
+			context.putImageData(imagedata, 0, 0);
+			
+			document.getElementById("score").innerHTML = "Score: " + String(score);
+			document.getElementById("life").innerHTML = "Life: " + String(life);
+		}
+		
+		main(0);
+	}
+</script>
+</head>
+<body>
+<div id='center'>
+  <p>Your lifespan is running out!</p>
+  <p>Use part of your lifespan to create cells, cells escaping the room increase your score!</p>
+  <p id='life'>Life: 0</p>
+  <p id='score'>Score: 0</p>
+  <canvas id="canvas" width="399" height= "399" style="background-color:yellow;">Canvas goes here.</canvas>
+  <button id='frozen' type='button' onclick="toggleFreeze()">Unfreeze</button>
+</div>
+</body>
 </html>
